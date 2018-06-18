@@ -97,6 +97,7 @@ def get_5a_firmware(data):
 
 def get_31_firmware(data):
     firmware = list()
+    addresses = list()
     chunk_size = 130
     data_size = chunk_size - 2
     addr_next = 0
@@ -110,8 +111,9 @@ def get_31_firmware(data):
             firmware.extend([None] * skipped_bytes)
         firmware += data[i+2:i+data_size+2]
         addr_next = addr + data_size
+        addresses.append(addr)
 
-    return firmware
+    return firmware, addresses
 
 def decrypt_firmware(key1, key2, key3, encrypted, search_value):
     operators = [
@@ -255,7 +257,7 @@ def main():
 
     # extract encrypted firmware (last for bytes are checksum for entire file)
     firmware_start = indicator_len + headers_len
-    encrypted = get_firmware[file_fmt](raw_data[firmware_start:-4])
+    encrypted, addresses = get_firmware[file_fmt](raw_data[firmware_start:-4])
 
     # attempt to decrypt firmware (validate by searching for part number in decrypted bytes)
     part_num_prefix = f_base.replace('-','').replace('_', '')
@@ -284,6 +286,7 @@ def main():
                 f_out = f_name + '.bin'
                 firmware['meta']['checksums'] = checksums[f_base]
                 firmware['meta']['rwd_top'] = raw_data[0:(indicator_len+headers_len)]
+                firmware['meta']['addresses'] = addresses
                 write_firmware(firmware, f_out)
                 break
 
