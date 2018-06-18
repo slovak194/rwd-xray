@@ -208,6 +208,7 @@ def main():
     if f_ext == ".gz":
         open_fn = gzip.open
         f_name, f_ext = os.path.splitext(f_name)
+        f_base = os.path.basename(f_name)
 
     with open_fn(sys.argv[1], 'rb') as f:
         raw_data = f.read()
