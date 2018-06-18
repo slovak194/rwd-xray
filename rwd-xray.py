@@ -6,6 +6,7 @@ import gzip
 import binascii
 import operator
 import itertools
+import pickle
 
 def get_file_checksum(data):
     expected = struct.unpack('<L', data[-4:])[0]
@@ -147,7 +148,10 @@ def decrypt_firmware(key1, key2, key3, encrypted, search_value):
             sys.stdout.write('.')
             sys.stdout.flush()
             if search_value in decrypted and decrypted not in firmware_candidates:
-                firmware_candidates.append(decrypted)
+                encoder = get_encoder(
+                    k1['val'], k2['val'], k3['val'],
+                    o1['fn'], o2['fn'], o3['fn'])
+                firmware_candidates.append({'firmware': decrypted, 'meta': {'encoder': encoder}})
                 display_ciphers.append(
                     "(((i {} {}) {} {}) {} {}) & 0xFF".format(
                         o1['sym'], k1['sym'],
@@ -158,6 +162,7 @@ def decrypt_firmware(key1, key2, key3, encrypted, search_value):
         print("cipher: {}".format(cipher))
     return firmware_candidates
 
+
 def get_decoder(key1, key2, key3, op1, op2, op3):
     decoder = {}
 
@@ -167,14 +172,31 @@ def get_decoder(key1, key2, key3, op1, op2, op3):
 
     return decoder
 
+
+def get_encoder(key1, key2, key3, op1, op2, op3):
+    encoder = {}
+
+    for i in range(256):
+        e = op3(op2(op1(i, key1), key2), key3) & 0xFF
+        encoder[chr(i)] = chr(e)
+
+    return encoder
+
+
 def get_checksum(data):
     result = -sum(map(ord, data))
     return chr(result & 0xFF)
 
-def write_firmware(data, file_name):
+
+def write_firmware(firmware, file_name):
     with open(file_name, 'wb') as o:
-        o.write(data)
+        o.write(firmware['firmware'])
     print('firmware: {}'.format(file_name))
+    file_name = file_name + '.pickle'
+
+    pickle.dump(firmware['meta'], open(file_name, 'wb'))
+    print('metadata: {}'.format(file_name))
+
 
 def main():
     get_headers = {
@@ -251,8 +273,8 @@ def main():
             print("firmware[{}] checksums:".format(idx))
             match = True
             for start, end in checksums[f_base]:
-                sum = ord(get_checksum(firmware[start:end]))
-                chk = ord(firmware[end])
+                sum = ord(get_checksum(firmware['firmware'][start:end]))
+                chk = ord(firmware['firmware'][end])
                 print("{} {} {}".format(hex(chk), "=" if chk == sum else "!=", hex(sum)))
                 if sum != chk:
                     match = False
@@ -260,6 +282,8 @@ def main():
             if match:
                 print("checksums good!")
                 f_out = f_name + '.bin'
+                firmware['meta']['checksums'] = checksums[f_base]
+                firmware['meta']['rwd_top'] = raw_data[0:(indicator_len+headers_len)]
                 write_firmware(firmware, f_out)
                 break
 
