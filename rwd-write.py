@@ -19,12 +19,14 @@ def main():
 
     # Collect data chunks.
 
-    data_chuncs = ''
+    data_chuncs = b''
+
+    data_chuncs += meta_data['rwd_top']
+
     for addr in meta_data['addresses']:
-        adr_bytes = chr(((addr >> 4) >> (8 * 0)) & 0xFF) + chr(((addr >> 4) >> (8 * 0)) & 0xFF)
+        adr_bytes = bytes(((addr >> 4) >> (8 * 0)) & 0xFF) + bytes(((addr >> 4) >> (8 * 0)) & 0xFF)
 
-        # data_chuncs = data_chuncs + adr_bytes +
-
+        data_chuncs += adr_bytes + bin_data[addr:addr+128]
 
     # Calculate and set firmware checksums
     # Encript
