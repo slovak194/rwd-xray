@@ -8,14 +8,17 @@ import operator
 import itertools
 import pickle
 
+
 def get_file_checksum(data):
     expected = struct.unpack('<L', data[-4:])[0]
     actual = sum(data[0:-4])
 
     return expected, actual
 
+
 def is_ascii(s):
     return all(c == 0 or (c >= 0x20 and c <= 0x7E) for c in s)
+
 
 def get_5a_headers(data):
     headers = {}
@@ -44,6 +47,7 @@ def get_5a_headers(data):
         h_idx += 1
 
     return headers, d_idx
+
 
 def get_31_headers(data):
     headers = {}
@@ -76,22 +80,25 @@ def get_31_headers(data):
 
     return headers, d_idx
 
+
 def get_5a_keys(headers):
     k1, k2, k3 = map(ord, headers[5][0][0:3])
     
     return k1, k2, k3
 
+
 def get_31_keys(headers):
-    # k = binascii.a2b_hex(headers[b'&'][0])
+    k = binascii.a2b_hex(headers[b'&'][0])
     # k1, k2, k3 = map(ord, k)
 
-    k = headers[b'&'][0]
+    # k = headers[b'&'][0]
 
     k1 = k[0]
     k2 = k[1]
     k3 = k[2]
 
     return k1, k2, k3
+
 
 def get_5a_firmware(data):
     print('firmware addrs: 0x{} 0x{}'.format(
@@ -100,6 +107,7 @@ def get_5a_firmware(data):
     ))
 
     return data[8:]
+
 
 def get_31_firmware(data):
     firmware = list()
@@ -156,10 +164,7 @@ def decrypt_firmware(key1, key2, key3, encrypted, search_value):
             decrypted = b''.join(data)
             sys.stdout.write('.')
             sys.stdout.flush()
-
-            # \x33\x39\x39\x39\x30\x2d\x54\x56\x39\x2d\x41\x39\x31\x30
-
-            if b'\x33\x39\x39\x39\x30' in decrypted and decrypted not in firmware_candidates:
+            if search_value.encode('ascii') in decrypted and decrypted not in firmware_candidates:
                 encoder = get_encoder(
                     k1['val'], k2['val'], k3['val'],
                     o1['fn'], o2['fn'], o3['fn'])
@@ -190,14 +195,14 @@ def get_encoder(key1, key2, key3, op1, op2, op3):
 
     for i in range(256):
         e = op3(op2(op1(i, key1), key2), key3) & 0xFF
-        encoder[chr(i)] = chr(e)
+        encoder[i] = e
 
     return encoder
 
 
 def get_checksum(data):
-    result = -sum(map(ord, data))
-    return chr(result & 0xFF)
+    result = -sum(data)
+    return result & 0xFF
 
 
 def write_firmware(firmware, file_name):
@@ -285,8 +290,8 @@ def main():
             print("firmware[{}] checksums:".format(idx))
             match = True
             for start, end in checksums[f_base]:
-                sum = ord(get_checksum(firmware['firmware'][start:end]))
-                chk = ord(firmware['firmware'][end])
+                sum = get_checksum(firmware['firmware'][start:end])
+                chk = firmware['firmware'][end]
                 print("{} {} {}".format(hex(chk), "=" if chk == sum else "!=", hex(sum)))
                 if sum != chk:
                     match = False
