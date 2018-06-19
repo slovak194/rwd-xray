@@ -10,12 +10,12 @@ import pickle
 
 def get_file_checksum(data):
     expected = struct.unpack('<L', data[-4:])[0]
-    actual = sum(map(ord, data[0:-4]))
+    actual = sum(data[0:-4])
 
     return expected, actual
 
 def is_ascii(s):
-    return all(ord(c) == 0 or (ord(c) >= 0x20 and ord(c) <= 0x7E) for c in s)
+    return all(c == 0 or (c >= 0x20 and c <= 0x7E) for c in s)
 
 def get_5a_headers(data):
     headers = {}
@@ -51,27 +51,27 @@ def get_31_headers(data):
     d_idx = 0
     h_idx = 0
     while 1:
-        delim = data[d_idx]
+        delim = data[d_idx:d_idx+1]
         # stop when delimiter is not found (0x__0D0A)
-        if data[d_idx+1:d_idx+3] != "\x0D\x0A":
+        if data[d_idx+1:d_idx+3] != b"\x0D\x0A":
             break
         d_idx += 3
 
         headers[delim] = []
         while 1:
             # stop when delimiter is repeated
-            if data[d_idx:d_idx+3] == delim + "\x0D\x0A":
+            if data[d_idx:d_idx+3] == delim + b"\x0D\x0A":
                 d_idx += 3
                 break
             # header data
-            end_idx = data.find("\x0D\x0A", d_idx)
+            end_idx = data.find(b"\x0D\x0A", d_idx)
             assert end_idx != -1, "newline delimiter not found!"
             h_data = data[d_idx:end_idx]
             d_idx += len(h_data) + 2
             headers[delim].append(h_data)
         
-        display_headers = [val if is_ascii(val) else '0x'+binascii.b2a_hex(val) for val in headers[delim]]
-        print("header[{}]: {}".format(delim, ' '.join(display_headers)))
+        # display_headers = [val if is_ascii(val) else '0x'+binascii.b2a_hex(val) for val in headers[delim]]
+        # print("header[{}]: {}".format(delim, ' '.join(display_headers)))
         h_idx += 1
 
     return headers, d_idx
@@ -82,8 +82,14 @@ def get_5a_keys(headers):
     return k1, k2, k3
 
 def get_31_keys(headers):
-    k = binascii.a2b_hex(headers['&'][0])
-    k1, k2, k3 = map(ord, k)
+    # k = binascii.a2b_hex(headers[b'&'][0])
+    # k1, k2, k3 = map(ord, k)
+
+    k = headers[b'&'][0]
+
+    k1 = k[0]
+    k2 = k[1]
+    k3 = k[2]
 
     return k1, k2, k3
 
@@ -101,8 +107,8 @@ def get_31_firmware(data):
     chunk_size = 130
     data_size = chunk_size - 2
     addr_next = 0
-    for i in xrange(0, len(data), chunk_size):
-        addr = (ord(data[i]) << 12) | (ord(data[i+1]) << 4)
+    for i in range(0, len(data), chunk_size):
+        addr = (data[i] << 12) | (data[i+1] << 4)
         assert addr >= addr_next, "address decreased"
         # fill any address gaps with None
         skipped_bytes = addr - addr_next
@@ -114,6 +120,7 @@ def get_31_firmware(data):
         addresses.append(addr)
 
     return firmware, addresses
+
 
 def decrypt_firmware(key1, key2, key3, encrypted, search_value):
     operators = [
@@ -145,11 +152,14 @@ def decrypt_firmware(key1, key2, key3, encrypted, search_value):
             if len(decoder) != 256:
                 continue
 
-            data = map(lambda x: '\x00' if x is None else decoder[x], encrypted)
-            decrypted = ''.join(data)
+            data = [*map(lambda x: b'\x00' if x is None else decoder[x].to_bytes(1, byteorder='little'), encrypted)]
+            decrypted = b''.join(data)
             sys.stdout.write('.')
             sys.stdout.flush()
-            if search_value in decrypted and decrypted not in firmware_candidates:
+
+            # \x33\x39\x39\x39\x30\x2d\x54\x56\x39\x2d\x41\x39\x31\x30
+
+            if b'\x33\x39\x39\x39\x30' in decrypted and decrypted not in firmware_candidates:
                 encoder = get_encoder(
                     k1['val'], k2['val'], k3['val'],
                     o1['fn'], o2['fn'], o3['fn'])
@@ -170,7 +180,7 @@ def get_decoder(key1, key2, key3, op1, op2, op3):
 
     for i in range(256):
         e = op3(op2(op1(i, key1), key2), key3) & 0xFF
-        decoder[chr(e)] = chr(i)
+        decoder[e] = i
 
     return decoder
 
@@ -202,18 +212,18 @@ def write_firmware(firmware, file_name):
 
 def main():
     get_headers = {
-        "Z": get_5a_headers,
-        "1": get_31_headers,
+        b"Z": get_5a_headers,
+        b"1": get_31_headers,
     }
 
     get_keys = {
-        "Z": get_5a_keys,
-        "1": get_31_keys,
+        b"Z": get_5a_keys,
+        b"1": get_31_keys,
     }
 
     get_firmware = {
-        "Z": get_5a_firmware,
-        "1": get_31_firmware,
+        b"Z": get_5a_firmware,
+        b"1": get_31_firmware,
     }
 
     checksums = {
