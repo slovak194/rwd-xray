@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 import os
+import pickle
 import sys
 import struct
-import gzip
-import binascii
-import operator
-import itertools
-import pickle
-from pprint import pprint
+
+# Does not support changes in section location and size of binary.
 
 
 def get_checksum(data):
     result = -sum(data)
     return result & 0xFF
-
-import sys
-import struct
 
 
 def get_file_checksum(data):
@@ -39,10 +33,9 @@ def main():
 
     meta_data = pickle.load(open(sys.argv[1] + '.pickle', 'rb'))
 
-    # pprint(meta_data)
+    assert meta_data['bin_length'] == len(bin_data), 'Size of firmware was changed!'
 
     # Calculate and set firmware checksums
-
     for start, end in meta_data['checksums']:
         calculated_sum = get_checksum(bin_data[start:end])
         check_sum = bin_data[end]
@@ -53,14 +46,10 @@ def main():
                 bin_data[end] = calculated_sum
 
     # Encript
-
     enrypted = b''.join([*map(lambda x: meta_data['encoder'][x].to_bytes(1, byteorder='little'), bin_data)])
 
-    # exit(0)
-
-    data_chuncs = b''
-
     # Prepend rwd top
+    data_chuncs = b''
     data_chuncs += meta_data['rwd_top']
 
     # Collect data chunks.

@@ -302,6 +302,7 @@ def main():
                 firmware['meta']['checksums'] = checksums[f_base]
                 firmware['meta']['rwd_top'] = raw_data[0:(indicator_len+headers_len)]
                 firmware['meta']['addresses'] = addresses
+                firmware['meta']['bin_length'] = len(firmware['firmware'])
                 write_firmware(firmware, f_out)
                 break
 
