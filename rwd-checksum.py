@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+
+# Example usage:
+# python3 rwd-checksum.py 39990-TV9-A910.rwd
+# file checksum: 0x1bdbfef = 0x44f4c38
+# Not Ok, to be calculated and updated
+# Update checksum in original file (Y/N): Y
+# rwd file was updated. Validate checksum again:
+# file checksum: 0x44f4c38 = 0x44f4c38
+
 import sys
 import struct
 
