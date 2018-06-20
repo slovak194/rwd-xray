@@ -46,7 +46,7 @@ def main():
     for start, end in meta_data['checksums']:
         calculated_sum = get_checksum(bin_data[start:end])
         check_sum = bin_data[end]
-        print("{} {} {}".format(hex(check_sum), "=" if check_sum == calculated_sum else "!=", hex(calculated_sum)))
+        print("{}-{}: {} {} {}".format(hex(start), hex(end), hex(check_sum), "=" if check_sum == calculated_sum else "!=", hex(calculated_sum)))
         if calculated_sum != check_sum:
             user_input = input('Update checksum in original file (Y/N): ')
             if user_input == 'Y':
