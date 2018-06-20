@@ -89,10 +89,6 @@ def get_5a_keys(headers):
 
 def get_31_keys(headers):
     k = binascii.a2b_hex(headers[b'&'][0])
-    # k1, k2, k3 = map(ord, k)
-
-    # k = headers[b'&'][0]
-
     k1 = k[0]
     k2 = k[1]
     k3 = k[2]
